@@ -16,13 +16,16 @@ This PyQt6 desktop companion keeps a LangChain-driven pet named **Pixel** on you
    pip install -e .
    ```
 
-2. **Configure your API key (optional)**
+2. **Configure your Grok credentials**
 
-   Pixel automatically falls back to a lightweight local model, but you can unlock full LLM responses by exporting an OpenAI key:
+   Create a `.env` file (or export env vars) with the deployment you want the agent to call:
 
-   ```powershell
-   setx OPENAI_API_KEY "<your-key>"
+   ```ini
+   GROK_BASE_URL=https://example.com
+   GROK_AUTH_TOKEN=sk-your-token
    ```
+
+   The PyQt agent and the CLI tester both load these values automatically via `python-dotenv`.
 
 3. **Run the pet**
 
@@ -55,4 +58,3 @@ Add `--raw` to inspect the full JSON response, or adjust the `--endpoint`, `--te
 - `d1.ui.DesktopPetWindow` and `d1.ui.AgentWorker` isolate all PyQt concerns, while `d1.app.run_app()` simply boots the UI.
 
 Feel free to remix the prompt, drop in another LangChain-compatible model, or customize the PyQt widgets to make Pixel your own.
-
