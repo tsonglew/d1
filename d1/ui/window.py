@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import contextlib
+from html import escape
 from typing import Final
 
-from PyQt6.QtCore import QEvent, QThread, Qt
-from PyQt6.QtGui import QFont
-from PyQt6.QtWidgets import (
+from PySide6.QtCore import QEvent, Qt, QThread
+from PySide6.QtGui import QFont
+from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -45,9 +46,7 @@ class DesktopPetWindow(QWidget):
         self.pet_label = QLabel("=^.^=")
         self.pet_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.pet_label.setFont(QFont("Segoe UI Emoji", 36))
-        self.pet_label.setStyleSheet(
-            "QLabel { background-color: #fef3c7; border-radius: 16px; padding: 12px; }"
-        )
+        self.pet_label.setStyleSheet("QLabel { background-color: #fef3c7; border-radius: 16px; padding: 12px; }")
 
         self.chat_view = QTextEdit()
         self.chat_view.setReadOnly(True)
@@ -98,7 +97,7 @@ class DesktopPetWindow(QWidget):
 
         thread.started.connect(worker.run)
         worker.responded.connect(lambda reply: self._append_message("Pixel", reply))
-        worker.errored.connect(lambda err: self._append_message("Pixel", f"Something went wrong: {err}"))
+        worker.errored.connect(self._handle_worker_error)
         worker.finished.connect(lambda: self._cleanup_worker(thread, worker))
 
         thread.start()
@@ -113,8 +112,13 @@ class DesktopPetWindow(QWidget):
             self._threads.remove(thread)
         self._set_waiting(False)
 
+    def _handle_worker_error(self, details: str) -> None:
+        self._append_message("Pixel", f"Something went wrong:\n{details}")
+
     def _append_message(self, speaker: str, message: str) -> None:
-        self.chat_view.append(f"<b>{speaker}:</b> {message}")
+        safe_speaker = escape(speaker)
+        safe_message = escape(message).replace("\n", "<br>")
+        self.chat_view.append(f"<b>{safe_speaker}:</b> {safe_message}")
 
     def _set_waiting(self, waiting: bool) -> None:
         self.send_button.setDisabled(waiting)

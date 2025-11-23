@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import traceback
 from typing import final
 
-from PyQt6.QtCore import QObject, pyqtSignal
+from PySide6.QtCore import QObject, Signal
 
 from ..agents import PetAgent
 
@@ -13,9 +14,9 @@ from ..agents import PetAgent
 class AgentWorker(QObject):
     """Runs the LangChain call on a background thread."""
 
-    finished = pyqtSignal()
-    responded = pyqtSignal(str)
-    errored = pyqtSignal(str)
+    finished = Signal()
+    responded = Signal(str)
+    errored = Signal(str)
 
     def __init__(self, agent: PetAgent, user_text: str) -> None:
         super().__init__()
@@ -26,11 +27,10 @@ class AgentWorker(QObject):
         try:
             reply = self._agent.respond(self._user_text)
             self.responded.emit(reply)
-        except Exception as exc:  # pragma: no cover - UI side effect
-            self.errored.emit(str(exc))
+        except Exception:  # pragma: no cover - UI side effect
+            self.errored.emit(traceback.format_exc())
         finally:
             self.finished.emit()
 
 
 __all__ = ["AgentWorker"]
-

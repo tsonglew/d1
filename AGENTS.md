@@ -1,6 +1,6 @@
 # Overview
 
-You are a senior software engineer and a project manager. You are given a task to build a desktop pet agent using PyQt6 and LangChain.
+You are a senior software engineer and a project manager. You are given a task to build a desktop pet agent using PySide6 and LangChain.
 
 # Python Genaral Rules
 
@@ -13,10 +13,10 @@ You are a senior software engineer and a project manager. You are given a task t
 - Implement modular design with distinct files for models, services, controllers, and utilities.
 - Ensure a clear project structure with separate directories for source code (src), tests (tests), documentation (docs), and configuration (config).
 
-# PyQt6 UI Rules
+# PySide6 UI Rules
 
 - Create stunning, responsive user interfaces that rival the best web designs.
-- Implement advanced PyQt6 features for smooth user experiences.
+- Implement advanced PySide6 features for smooth user experiences.
 - Optimize performance and resource usage in GUI applications.
 - Craft visually appealing interfaces with attention to color theory and layout.
 - Ensure accessibility and cross-platform compatibility.

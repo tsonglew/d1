@@ -1,6 +1,6 @@
 ## Desktop Pet Agent
 
-This PyQt6 desktop companion keeps a LangChain-driven pet named **Pixel** on your screen. Pixel chats with you, reacts to simple cues, and (optionally) taps into OpenAI models for richer banter. The codebase now targets Python 3.14+ and leans on its modern typing + dataclass ergonomics.
+This PySide6 desktop companion keeps a LangChain-driven duck named **Pixel** floating on your desktop. The translucent duck glides left and right with a looping GIF, and a click on the pet pops open the chat window where you can trade messages powered by LangChain. The codebase targets Python 3.14+ and leans on its modern typing + dataclass ergonomics.
 
 ### Getting started
 
@@ -25,13 +25,15 @@ This PyQt6 desktop companion keeps a LangChain-driven pet named **Pixel** on you
    GROK_AUTH_TOKEN=sk-your-token
    ```
 
-   The PyQt agent and the CLI tester both load these values automatically via `python-dotenv`.
+   The PySide agent and the CLI tester both load these values automatically via `python-dotenv`.
 
 3. **Run the pet**
 
    ```bash
    python main.py
    ```
+
+   A frameless duck overlay will appear immediately. Click the duck any time you want to summon or re-focus the chat window.
 
 ### Testing the Grok API
 
@@ -55,6 +57,6 @@ Add `--raw` to inspect the full JSON response, or adjust the `--endpoint`, `--te
 - `d1.prompts.SYSTEM_PROMPT` centralizes the pet tone so both local and remote LLMs stay in sync.
 - `d1.models.ChatModelSettings` + `d1.models.create_chat_model()` decide between `langchain-openai` and the offline `LocalPetChatModel`.
 - `d1.agents.PetAgent` is a dataclass that wires prompts, history, and the runnable chain. `PetAgent.reset()` now returns `Self` for fluent usage.
-- `d1.ui.DesktopPetWindow` and `d1.ui.AgentWorker` isolate all PyQt concerns, while `d1.app.run_app()` simply boots the UI.
+- `d1.ui.DuckOverlayWindow` renders the animated desktop pet, while `d1.ui.DesktopPetWindow` and `d1.ui.AgentWorker` own the chat experience. `d1.app.run_app()` wires the overlay click signal to the chat window.
 
-Feel free to remix the prompt, drop in another LangChain-compatible model, or customize the PyQt widgets to make Pixel your own.
+Feel free to remix the prompt, drop in another LangChain-compatible model, or customize the PySide widgets to make Pixel your own.
