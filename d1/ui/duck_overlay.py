@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import QPoint, QTimer, Qt, Signal
+from PySide6.QtCore import QPoint, QPointF, Qt, QTimer, Signal
 from PySide6.QtGui import QGuiApplication, QMovie
 from PySide6.QtWidgets import QLabel, QWidget
 
@@ -42,6 +42,8 @@ class DuckOverlayWindow(QWidget):
             -1: self._load_movie("duck-left.gif"),
         }
         self._apply_movie(self._movies[1])
+        self._is_dragging = False
+        self._drag_offset = QPointF()
 
     def showEvent(self, event) -> None:  # pragma: no cover - UI hook
         super().showEvent(event)
@@ -51,8 +53,29 @@ class DuckOverlayWindow(QWidget):
 
     def mousePressEvent(self, event) -> None:  # pragma: no cover - UI hook
         if event.button() == Qt.MouseButton.LeftButton:
+            self._is_dragging = True
+            self._drag_offset = event.position()
+            if self._timer.isActive():
+                self._timer.stop()
             self.duck_clicked.emit()
         super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event) -> None:  # pragma: no cover - UI hook
+        if self._is_dragging and (event.buttons() & Qt.MouseButton.LeftButton):
+            global_pos = event.globalPosition()
+            target_pos = global_pos - self._drag_offset
+            self.move(int(target_pos.x()), int(target_pos.y()))
+            event.accept()
+            return
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event) -> None:  # pragma: no cover - UI hook
+        if event.button() == Qt.MouseButton.LeftButton and self._is_dragging:
+            self._is_dragging = False
+            if not self._timer.isActive():
+                self._timer.start()
+            event.accept()
+        super().mouseReleaseEvent(event)
 
     def _load_movie(self, filename: str) -> QMovie:
         movie_path = (self._asset_dir / filename).resolve()
