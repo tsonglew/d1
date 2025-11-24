@@ -22,16 +22,6 @@ def run_app(*, window: DesktopPetWindow | None = None) -> None:
 
     duck_overlay = DuckOverlayWindow()
 
-    def _handle_duck_click() -> None:
-        if chat_window.isVisible():
-            chat_window.raise_()
-            chat_window.activateWindow()
-        else:
-            chat_window.show()
-            chat_window.raise_()
-            chat_window.activateWindow()
-
-    duck_overlay.duck_clicked.connect(_handle_duck_click)
     duck_overlay.destroyed.connect(chat_window.close)
     duck_overlay.show()
 
