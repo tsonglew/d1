@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+import sys
 from dataclasses import dataclass
 from os import getenv
 
@@ -17,6 +19,10 @@ try:
 except Exception:  # pragma: no cover - optional dependency
     ChatOpenAI = None  # type: ignore[assignment]
 
+logger = logging.getLogger(__name__)
+_PY314_OR_NEWER = sys.version_info >= (3, 14)
+_warned_py314: bool = False
+
 
 @dataclass(slots=True, frozen=True)
 class ChatModelSettings:
@@ -28,9 +34,23 @@ class ChatModelSettings:
     api_key: str | None = None
 
 
+def _runtime_supports_remote() -> bool:
+    global _warned_py314
+    if not _PY314_OR_NEWER:
+        return True
+    if not _warned_py314:
+        version = ".".join(str(i) for i in sys.version_info[:3])
+        logger.warning(
+            "Python %s is incompatible with the Grok chat backend; using the local fallback model.",
+            version,
+        )
+        _warned_py314 = True
+    return False
+
+
 def _build_grok_model(settings: ChatModelSettings) -> BaseChatModel | None:
     """Return a ChatOpenAI client pointed at the Grok deployment."""
-    if ChatOpenAI is None:
+    if ChatOpenAI is None or not _runtime_supports_remote():
         return None
 
     base_url = settings.base_url or getenv("GROK_BASE_URL")

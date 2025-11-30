@@ -31,6 +31,7 @@ class DesktopPetWindow(QWidget):
         super().__init__()
         self._agent = agent or PetAgent()
         self._threads: list[QThread] = []
+        self._worker_threads: dict[AgentWorker, QThread] = {}
 
         self._build_ui()
 
@@ -94,14 +95,24 @@ class DesktopPetWindow(QWidget):
         worker = AgentWorker(self._agent, user_text)
         thread = QThread(self)
         worker.moveToThread(thread)
+        self._worker_threads[worker] = thread
 
         thread.started.connect(worker.run)
         worker.responded.connect(lambda reply: self._append_message("Pixel", reply))
         worker.errored.connect(self._handle_worker_error)
-        worker.finished.connect(lambda: self._cleanup_worker(thread, worker))
+        worker.finished.connect(self._handle_worker_finished)
 
         thread.start()
         self._threads.append(thread)
+
+    def _handle_worker_finished(self) -> None:
+        sender = self.sender()
+        if not isinstance(sender, AgentWorker):
+            return
+        thread = self._worker_threads.pop(sender, None)
+        if thread is None:
+            return
+        self._cleanup_worker(thread, sender)
 
     def _cleanup_worker(self, thread: QThread, worker: AgentWorker) -> None:
         thread.quit()

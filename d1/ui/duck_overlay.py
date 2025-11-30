@@ -126,20 +126,50 @@ class DuckOverlayWindow(QWidget):
         self._chatbox_timer.setSingleShot(True)
         self._chatbox_timer.timeout.connect(self._chatbox_label.hide)
         self.destroyed.connect(self._chatbox_label.close)
+        self._action_prompts = {
+            "click": (
+                "A user taps you on their desktop seeking help. Introduce yourself as Nova the Super Duck of the "
+                "Multiverse, offer immediate assistance on anything, and invite them to ask for specifics."
+            ),
+            "chat": (
+                "The user opens a context menu and selects 'Chat'. Greet them warmly as Nova the Super Duck, summarize "
+                "how you can help with life, code, or creativity, and politely ask what they'd like to do next."
+            ),
+            "joke": (
+                "The user selects 'Joke' from a context menu. Reply as Nova the Super Duck with a single playful, "
+                "cosmic-themed joke or pun (keep it under three sentences) and add a cheerful emoji."
+            ),
+            "touch": (
+                "The user gently boops or pats Nova by choosing 'Touch'. React with delight, describe a cute physical "
+                "animation, and invite them to keep interacting."
+            ),
+        }
+        self._action_previews = {
+            "click": "Nova is tuning in... 🪐",
+            "chat": "Nova leans in to chat...",
+            "joke": "Nova riffling through joke scrolls...",
+            "touch": "Nova fluffs feathers from the boop!",
+        }
         self._context_menu = QMenu(self)
+        self._chat_action = self._context_menu.addAction("Chat with Nova")
+        self._chat_action.triggered.connect(lambda: self._request_duck_reply("chat"))
+        self._joke_action = self._context_menu.addAction("Tell me a joke")
+        self._joke_action.triggered.connect(lambda: self._request_duck_reply("joke"))
+        self._touch_action = self._context_menu.addAction("Touch Nova")
+        self._touch_action.triggered.connect(lambda: self._request_duck_reply("touch"))
+        self._context_menu.addSeparator()
         self._exit_action = self._context_menu.addAction("Exit")
         self._exit_action.triggered.connect(self._handle_exit)
+        self._context_menu.aboutToHide.connect(self._handle_context_menu_closed)
         self._apply_movie(self._movies[1])
         self._is_dragging = False
         self._did_drag = False
         self._drag_offset = QPointF()
         self._is_paused = False
         self._threads: list[QThread] = []
+        self._worker_threads: dict[AgentWorker, QThread] = {}
         self._is_generating = False
-        self._click_prompt = (
-            "A user taps you on their desktop seeking help. Introduce yourself as Nova the Super Duck of the "
-            "Multiverse, offer immediate assistance on anything, and invite them to ask for specifics."
-        )
+        self._menu_forced_pause = False
 
     def showEvent(self, event) -> None:  # pragma: no cover - UI hook
         super().showEvent(event)
@@ -194,6 +224,7 @@ class DuckOverlayWindow(QWidget):
         super().mouseReleaseEvent(event)
 
     def contextMenuEvent(self, event) -> None:  # pragma: no cover - UI hook
+        self._menu_forced_pause = not self._is_paused
         self._set_paused(True)
         self._context_menu.popup(event.globalPos())
         event.accept()
@@ -306,29 +337,46 @@ class DuckOverlayWindow(QWidget):
             return
         app.quit()
 
-    def _request_duck_reply(self) -> None:
+    def _handle_context_menu_closed(self) -> None:
+        if not self._menu_forced_pause:
+            return
+        self._menu_forced_pause = False
+        self._set_paused(False)
+
+    def _request_duck_reply(self, action: str = "click") -> None:
         if self._is_generating:
             return
         self._is_generating = True
-        self._chatbox_label.setText("Nova is tuning in... 🪐")
+        preview = self._action_previews.get(action, self._action_previews["click"])
+        self._chatbox_label.setText(preview)
         self._show_chatbox(auto_hide=False)
-        self._start_worker(self._build_click_prompt())
+        self._start_worker(self._build_action_prompt(action))
 
-    def _build_click_prompt(self) -> str:
-        return self._click_prompt
+    def _build_action_prompt(self, action: str) -> str:
+        return self._action_prompts.get(action, self._action_prompts["click"])
 
     def _start_worker(self, user_text: str) -> None:
         worker = AgentWorker(self._agent, user_text)
         thread = QThread(self)
         worker.moveToThread(thread)
+        self._worker_threads[worker] = thread
 
         thread.started.connect(worker.run)
         worker.responded.connect(self._handle_agent_reply)
         worker.errored.connect(self._handle_agent_error)
-        worker.finished.connect(lambda: self._cleanup_worker(thread, worker))
+        worker.finished.connect(self._handle_worker_finished)
 
         thread.start()
         self._threads.append(thread)
+
+    def _handle_worker_finished(self) -> None:
+        sender = self.sender()
+        if not isinstance(sender, AgentWorker):
+            return
+        thread = self._worker_threads.pop(sender, None)
+        if thread is None:
+            return
+        self._cleanup_worker(thread, sender)
 
     def _handle_agent_reply(self, reply: str) -> None:
         message = reply.strip() or "Nova is momentarily speechless, try again!"
