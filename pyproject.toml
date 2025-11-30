@@ -3,7 +3,7 @@ name = "d1"
 version = "0.1.0"
 description = "LangChain-powered desktop pet"
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.12"
 dependencies = [
     "PySide6>=6.7",
     "langchain>=1.0",
@@ -15,7 +15,7 @@ dependencies = [
 
 [tool.ruff]
 line-length = 120
-target-version = "py314"
+target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP"]
