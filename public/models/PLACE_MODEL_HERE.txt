@@ -1,0 +1,5 @@
+Add your Live2D model folder here, then update MODEL_URL in src/renderer/main.ts.
+Example structure:
+public/models/your-model/your-model.model3.json
+public/models/your-model/your-model.moc3
+public/models/your-model/textures/*.png
