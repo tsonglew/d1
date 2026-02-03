@@ -7,8 +7,9 @@ import { Live2DModel } from "pixi-live2d-display/cubism4";
 const stageEl = document.getElementById("stage");
 const statusEl = document.getElementById("status");
 const toggleBtn = document.getElementById("toggle-click") as HTMLButtonElement | null;
+const bubbleEl = document.getElementById("bubble");
 
-if (!stageEl || !statusEl || !toggleBtn) {
+if (!stageEl || !statusEl || !toggleBtn || !bubbleEl) {
   throw new Error("Missing required DOM nodes");
 }
 
@@ -34,18 +35,35 @@ const setupDragging = (model: Live2DModel) => {
   model.cursor = "grab";
 
   let dragging = false;
+  let downAt = 0;
+  let downX = 0;
+  let downY = 0;
   let offsetX = 0;
   let offsetY = 0;
+  const clickThreshold = 6;
+  const clickTimeMs = 350;
 
   model.on("pointerdown", (event: PIXI.InteractionEvent) => {
-    dragging = true;
-    model.cursor = "grabbing";
+    dragging = false;
+    downAt = performance.now();
     const pos = event.data.getLocalPosition(model.parent);
+    downX = pos.x;
+    downY = pos.y;
     offsetX = model.x - pos.x;
     offsetY = model.y - pos.y;
   });
 
-  model.on("pointerup", () => {
+  model.on("pointerup", (event: PIXI.InteractionEvent) => {
+    if (!dragging) {
+      const upPos = event.data.getLocalPosition(model.parent);
+      const dx = upPos.x - downX;
+      const dy = upPos.y - downY;
+      const elapsed = performance.now() - downAt;
+      if (elapsed <= clickTimeMs && Math.hypot(dx, dy) <= clickThreshold) {
+        showBubble(model);
+      }
+    }
+
     dragging = false;
     model.cursor = "grab";
   });
@@ -56,10 +74,49 @@ const setupDragging = (model: Live2DModel) => {
   });
 
   model.on("pointermove", (event: PIXI.InteractionEvent) => {
-    if (!dragging) return;
     const pos = event.data.getLocalPosition(model.parent);
+    if (!dragging) {
+      const dx = pos.x - downX;
+      const dy = pos.y - downY;
+      if (Math.hypot(dx, dy) > clickThreshold) {
+        dragging = true;
+        model.cursor = "grabbing";
+      } else {
+        return;
+      }
+    }
     model.position.set(pos.x + offsetX, pos.y + offsetY);
   });
+};
+
+const responses = [
+  "嗨！今天也要一起努力吗？",
+  "别忘了喝水哦。",
+  "我在这儿陪你～",
+  "点击我有惊喜！",
+  "要不要休息一下？"
+];
+
+let bubbleTimer: number | null = null;
+
+const showBubble = (model: Live2DModel) => {
+  const message = responses[Math.floor(Math.random() * responses.length)];
+  bubbleEl.textContent = message;
+
+  const bounds = model.getBounds();
+  const x = bounds.x + bounds.width / 2;
+  const y = Math.max(bounds.y, 24);
+
+  bubbleEl.style.left = `${x}px`;
+  bubbleEl.style.top = `${y}px`;
+  bubbleEl.classList.add("show");
+
+  if (bubbleTimer !== null) {
+    window.clearTimeout(bubbleTimer);
+  }
+  bubbleTimer = window.setTimeout(() => {
+    bubbleEl.classList.remove("show");
+  }, 2200);
 };
 
 const loadPet = async () => {
