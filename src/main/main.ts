@@ -3,6 +3,17 @@ import { join } from "path";
 import { generatePetReply } from "./ai";
 
 const isDev = !app.isPackaged;
+let mainWindow: BrowserWindow | null = null;
+
+ipcMain.handle("pet:generate-reply", async (_event, prompt: string) => {
+  return generatePetReply(prompt);
+});
+
+ipcMain.handle("pet:set-click-through", (_event, enabled: boolean) => {
+  if (mainWindow) {
+    mainWindow.setIgnoreMouseEvents(enabled, { forward: true });
+  }
+});
 
 const applyFullScreenBounds = (win: BrowserWindow) => {
   const display = screen.getPrimaryDisplay();
@@ -51,19 +62,11 @@ const createWindow = () => {
 
 app.whenReady().then(() => {
   nativeTheme.themeSource = "system";
-  const win = createWindow();
-
-  ipcMain.handle("pet:set-click-through", (_event, enabled: boolean) => {
-    win.setIgnoreMouseEvents(enabled, { forward: true });
-  });
-
-  ipcMain.handle("pet:generate-reply", async (_event, prompt: string) => {
-    return generatePetReply(prompt);
-  });
+  mainWindow = createWindow();
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
+      mainWindow = createWindow();
     }
   });
 });
