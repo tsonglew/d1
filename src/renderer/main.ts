@@ -32,7 +32,81 @@ const fitModel = (model: Live2DModel) => {
   model.anchor.set(0.5, 1);
 };
 
-const setupDragging = (model: Live2DModel) => {
+type Response = {
+  text: string;
+  motionGroups?: string[];
+};
+
+const responses: Response[] = [
+  { text: "嗨！今天也要一起努力吗？", motionGroups: ["Tap", "Flick"] },
+  { text: "别忘了喝水哦。", motionGroups: ["Tap@Body", "Flick@Body"] },
+  { text: "我在这儿陪你～", motionGroups: ["Idle"] },
+  { text: "点击我有惊喜！", motionGroups: ["Flick", "Tap"] },
+  { text: "要不要休息一下？", motionGroups: ["Idle"] }
+];
+
+const danceMessages = ["跳舞时间！", "给你来一段舞步～", "一起摇摆一下！"];
+const danceMotionGroups = ["Tap", "Flick", "Tap@Body", "Flick@Body"];
+const danceChance = 0.25;
+
+const getAvailableMotionGroups = (model: Live2DModel) => {
+  const settings = model.internalModel?.settings as { motions?: Record<string, unknown[]> } | undefined;
+  return settings?.motions ? Object.keys(settings.motions) : [];
+};
+
+const pickMotionGroup = (preferred: string[] | undefined, available: string[]) => {
+  if (!available.length) return null;
+  if (preferred?.length) {
+    const match = preferred.find((group) => available.includes(group));
+    if (match) return match;
+  }
+  return available[Math.floor(Math.random() * available.length)] ?? null;
+};
+
+let bubbleTimer: number | null = null;
+
+const showBubble = (model: Live2DModel, message: string) => {
+  bubbleEl.textContent = message;
+
+  const bounds = model.getBounds();
+  const x = bounds.x + bounds.width / 2;
+  const y = Math.max(bounds.y, 24);
+
+  bubbleEl.style.left = `${x}px`;
+  bubbleEl.style.top = `${y}px`;
+  bubbleEl.classList.add("show");
+
+  if (bubbleTimer !== null) {
+    window.clearTimeout(bubbleTimer);
+  }
+  bubbleTimer = window.setTimeout(() => {
+    bubbleEl.classList.remove("show");
+  }, 2200);
+};
+
+const triggerTalk = (model: Live2DModel, availableGroups: string[]) => {
+  const canDance = danceMotionGroups.some((group) => availableGroups.includes(group));
+  const shouldDance = canDance && Math.random() < danceChance;
+
+  if (shouldDance) {
+    const message = danceMessages[Math.floor(Math.random() * danceMessages.length)] ?? "跳舞时间！";
+    showBubble(model, message);
+    const group = pickMotionGroup(danceMotionGroups, availableGroups);
+    if (group) {
+      void model.motion(group);
+    }
+    return;
+  }
+
+  const response = responses[Math.floor(Math.random() * responses.length)] ?? { text: "你好呀！" };
+  showBubble(model, response.text);
+  const group = pickMotionGroup(response.motionGroups, availableGroups);
+  if (group) {
+    void model.motion(group);
+  }
+};
+
+const setupDragging = (model: Live2DModel, availableGroups: string[]) => {
   model.interactive = true;
   model.cursor = "grab";
 
@@ -151,7 +225,7 @@ const setupDragging = (model: Live2DModel) => {
     const dy = pos.y - downY;
 
     if (!dragging && downOnModel && elapsed <= longPressMs && Math.hypot(dx, dy) <= clickThreshold) {
-      showBubble(model);
+      triggerTalk(model, availableGroups);
     }
 
     downOnModel = false;
@@ -187,36 +261,6 @@ const setupDragging = (model: Live2DModel) => {
   void applyClickThrough();
 };
 
-const responses = [
-  "嗨！今天也要一起努力吗？",
-  "别忘了喝水哦。",
-  "我在这儿陪你～",
-  "点击我有惊喜！",
-  "要不要休息一下？"
-];
-
-let bubbleTimer: number | null = null;
-
-const showBubble = (model: Live2DModel) => {
-  const message = responses[Math.floor(Math.random() * responses.length)];
-  bubbleEl.textContent = message;
-
-  const bounds = model.getBounds();
-  const x = bounds.x + bounds.width / 2;
-  const y = Math.max(bounds.y, 24);
-
-  bubbleEl.style.left = `${x}px`;
-  bubbleEl.style.top = `${y}px`;
-  bubbleEl.classList.add("show");
-
-  if (bubbleTimer !== null) {
-    window.clearTimeout(bubbleTimer);
-  }
-  bubbleTimer = window.setTimeout(() => {
-    bubbleEl.classList.remove("show");
-  }, 2200);
-};
-
 const loadPet = async () => {
   try {
     statusEl.textContent = "Loading model...";
@@ -226,7 +270,8 @@ const loadPet = async () => {
 
     app.stage.addChild(model);
     fitModel(model);
-    setupDragging(model);
+    const availableGroups = getAvailableMotionGroups(model);
+    setupDragging(model, availableGroups);
 
     window.addEventListener("resize", () => fitModel(model));
 
