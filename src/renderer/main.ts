@@ -45,7 +45,6 @@ const responses: Response[] = [
   { text: "要不要休息一下？", motionGroups: ["Idle"] }
 ];
 
-const danceMessages = ["跳舞时间！", "给你来一段舞步～", "一起摇摆一下！"];
 const danceMotionGroups = ["Tap", "Flick", "Tap@Body", "Flick@Body"];
 const danceChance = 0.25;
 
@@ -84,23 +83,37 @@ const showBubble = (model: Live2DModel, message: string) => {
   }, 2200);
 };
 
-const triggerTalk = (model: Live2DModel, availableGroups: string[]) => {
+const suggestMotionGroups = (message: string) => {
+  if (/跳|舞|摇摆/.test(message)) return danceMotionGroups;
+  if (/喝水|饮水/.test(message)) return ["Tap@Body", "Flick@Body"];
+  if (/休息|睡/.test(message)) return ["Idle"];
+  if (/惊喜|点击/.test(message)) return ["Tap", "Flick"];
+  return undefined;
+};
+
+const triggerTalk = async (model: Live2DModel, availableGroups: string[]) => {
   const canDance = danceMotionGroups.some((group) => availableGroups.includes(group));
   const shouldDance = canDance && Math.random() < danceChance;
 
-  if (shouldDance) {
-    const message = danceMessages[Math.floor(Math.random() * danceMessages.length)] ?? "跳舞时间！";
-    showBubble(model, message);
-    const group = pickMotionGroup(danceMotionGroups, availableGroups);
-    if (group) {
-      void model.motion(group);
-    }
-    return;
+  showBubble(model, "想一想...");
+
+  let message = "";
+  try {
+    message = await window.pet.generateReply("用户点击了你，请做出回应。");
+  } catch (error) {
+    console.error(error);
+    const fallback = responses[Math.floor(Math.random() * responses.length)] ?? { text: "你好呀！" };
+    message = fallback.text;
   }
 
-  const response = responses[Math.floor(Math.random() * responses.length)] ?? { text: "你好呀！" };
-  showBubble(model, response.text);
-  const group = pickMotionGroup(response.motionGroups, availableGroups);
+  if (shouldDance) {
+    message = /跳|舞|摇摆/.test(message) ? message : `跳舞时间！${message}`;
+  }
+
+  showBubble(model, message);
+
+  const preferred = shouldDance ? danceMotionGroups : suggestMotionGroups(message);
+  const group = pickMotionGroup(preferred, availableGroups);
   if (group) {
     void model.motion(group);
   }
@@ -225,7 +238,7 @@ const setupDragging = (model: Live2DModel, availableGroups: string[]) => {
     const dy = pos.y - downY;
 
     if (!dragging && downOnModel && elapsed <= longPressMs && Math.hypot(dx, dy) <= clickThreshold) {
-      triggerTalk(model, availableGroups);
+      void triggerTalk(model, availableGroups);
     }
 
     downOnModel = false;

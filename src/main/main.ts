@@ -1,5 +1,6 @@
 import { app, BrowserWindow, ipcMain, nativeTheme, screen } from "electron";
 import { join } from "path";
+import { generatePetReply } from "./ai";
 
 const isDev = !app.isPackaged;
 
@@ -54,6 +55,10 @@ app.whenReady().then(() => {
 
   ipcMain.handle("pet:set-click-through", (_event, enabled: boolean) => {
     win.setIgnoreMouseEvents(enabled, { forward: true });
+  });
+
+  ipcMain.handle("pet:generate-reply", async (_event, prompt: string) => {
+    return generatePetReply(prompt);
   });
 
   app.on("activate", () => {
