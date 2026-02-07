@@ -24,7 +24,9 @@ stageEl.appendChild(app.view as HTMLCanvasElement);
 const MODEL_URL = "/models/hiyori_free_en/hiyori_free_t08.model3.json";
 
 const fitModel = (model: Live2DModel) => {
-  const scale = Math.min(app.renderer.width / model.width, app.renderer.height / model.height) * 0.8;
+  const maxWidthScale = (app.renderer.width / model.width) * 0.5;
+  const maxHeightScale = (app.renderer.height / model.height) * 0.4;
+  const scale = Math.min(maxWidthScale, maxHeightScale);
   model.scale.set(scale, scale);
   model.position.set(app.renderer.width / 2, app.renderer.height * 0.85);
   model.anchor.set(0.5, 1);
@@ -35,58 +37,154 @@ const setupDragging = (model: Live2DModel) => {
   model.cursor = "grab";
 
   let dragging = false;
+  let dragOverride = false;
+  let hoverOverride = false;
   let downAt = 0;
   let downX = 0;
   let downY = 0;
+  let downOnModel = false;
   let offsetX = 0;
   let offsetY = 0;
+  let longPressTimer: number | null = null;
   const clickThreshold = 6;
-  const clickTimeMs = 350;
+  const longPressMs = 450;
 
-  model.on("pointerdown", (event: PIXI.InteractionEvent) => {
+  let clickThroughPreference = true;
+  let appliedClickThrough: boolean | null = null;
+
+  const applyClickThrough = async () => {
+    const shouldIgnore = clickThroughPreference && !hoverOverride && !dragOverride;
+    if (appliedClickThrough === shouldIgnore) return;
+    appliedClickThrough = shouldIgnore;
+    await window.pet.setClickThrough(shouldIgnore);
+  };
+
+  const updateToggle = () => {
+    toggleBtn.classList.toggle("active", clickThroughPreference);
+    toggleBtn.textContent = clickThroughPreference ? "Click-Through On" : "Click-Through";
+  };
+
+  const getPointer = (event: MouseEvent) => {
+    const rect = app.view.getBoundingClientRect();
+    return {
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top
+    };
+  };
+
+  const isOverModel = (x: number, y: number) => {
+    const bounds = model.getBounds();
+    return x >= bounds.x && x <= bounds.x + bounds.width && y >= bounds.y && y <= bounds.y + bounds.height;
+  };
+
+  const clearLongPress = () => {
+    if (longPressTimer !== null) {
+      window.clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
+  };
+
+  const beginDrag = (x: number, y: number) => {
+    dragging = true;
+    dragOverride = true;
+    void applyClickThrough();
+    model.cursor = "grabbing";
+    offsetX = model.x - x;
+    offsetY = model.y - y;
+  };
+
+  const endDrag = () => {
     dragging = false;
+    dragOverride = false;
+    model.cursor = "grab";
+    void applyClickThrough();
+  };
+
+  const scheduleLongPress = (x: number, y: number) => {
+    if (longPressTimer !== null) return;
+    longPressTimer = window.setTimeout(() => {
+      longPressTimer = null;
+      if (!downOnModel) return;
+      beginDrag(x, y);
+    }, longPressMs);
+  };
+
+  const updateHover = (x: number, y: number) => {
+    if (!clickThroughPreference || dragOverride) return;
+    const over = isOverModel(x, y);
+    if (hoverOverride === over) return;
+    hoverOverride = over;
+    void applyClickThrough();
+  };
+
+  const onMouseDown = (event: MouseEvent) => {
+    if (event.button !== 0) return;
+    const pos = getPointer(event);
     downAt = performance.now();
-    const pos = event.data.getLocalPosition(model.parent);
     downX = pos.x;
     downY = pos.y;
-    offsetX = model.x - pos.x;
-    offsetY = model.y - pos.y;
-  });
+    downOnModel = isOverModel(pos.x, pos.y);
+    if (downOnModel) {
+      scheduleLongPress(pos.x, pos.y);
+    }
+  };
 
-  model.on("pointerup", (event: PIXI.InteractionEvent) => {
-    if (!dragging) {
-      const upPos = event.data.getLocalPosition(model.parent);
-      const dx = upPos.x - downX;
-      const dy = upPos.y - downY;
-      const elapsed = performance.now() - downAt;
-      if (elapsed <= clickTimeMs && Math.hypot(dx, dy) <= clickThreshold) {
-        showBubble(model);
-      }
+  const onMouseMove = (event: MouseEvent) => {
+    const pos = getPointer(event);
+    updateHover(pos.x, pos.y);
+
+    if (dragging) {
+      model.position.set(pos.x + offsetX, pos.y + offsetY);
+      return;
     }
 
-    dragging = false;
-    model.cursor = "grab";
-  });
-
-  model.on("pointerupoutside", () => {
-    dragging = false;
-    model.cursor = "grab";
-  });
-
-  model.on("pointermove", (event: PIXI.InteractionEvent) => {
-    const pos = event.data.getLocalPosition(model.parent);
-    if (!dragging) {
-      const dx = pos.x - downX;
-      const dy = pos.y - downY;
-      if (Math.hypot(dx, dy) > clickThreshold) {
-        dragging = true;
-        model.cursor = "grabbing";
-      } else {
-        return;
-      }
+    if (event.buttons === 1 && downOnModel) {
+      scheduleLongPress(pos.x, pos.y);
     }
-    model.position.set(pos.x + offsetX, pos.y + offsetY);
+  };
+
+  const onMouseUp = (event: MouseEvent) => {
+    clearLongPress();
+    const elapsed = performance.now() - downAt;
+    const pos = getPointer(event);
+    const dx = pos.x - downX;
+    const dy = pos.y - downY;
+
+    if (!dragging && downOnModel && elapsed <= longPressMs && Math.hypot(dx, dy) <= clickThreshold) {
+      showBubble(model);
+    }
+
+    downOnModel = false;
+    if (dragging) {
+      endDrag();
+    }
+  };
+
+  const onMouseLeave = () => {
+    clearLongPress();
+    downOnModel = false;
+    if (hoverOverride) {
+      hoverOverride = false;
+      void applyClickThrough();
+    }
+    if (dragging) {
+      endDrag();
+    }
+  };
+
+  window.addEventListener("mousedown", onMouseDown);
+  window.addEventListener("mousemove", onMouseMove);
+  window.addEventListener("mouseup", onMouseUp);
+  window.addEventListener("blur", onMouseLeave);
+
+  toggleBtn.addEventListener("click", async () => {
+    clickThroughPreference = !clickThroughPreference;
+    updateToggle();
+    await applyClickThrough();
   });
+
+  updateToggle();
+  void applyClickThrough();
 };
 
 const responses = [
@@ -138,14 +236,5 @@ const loadPet = async () => {
     statusEl.textContent = "Model load failed. See console.";
   }
 };
-
-let clickThrough = false;
-
-toggleBtn.addEventListener("click", async () => {
-  clickThrough = !clickThrough;
-  await window.pet.setClickThrough(clickThrough);
-  toggleBtn.classList.toggle("active", clickThrough);
-  toggleBtn.textContent = clickThrough ? "Click-Through On" : "Click-Through";
-});
 
 loadPet();

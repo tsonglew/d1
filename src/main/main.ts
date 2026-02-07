@@ -1,12 +1,22 @@
-import { app, BrowserWindow, ipcMain, nativeTheme } from "electron";
+import { app, BrowserWindow, ipcMain, nativeTheme, screen } from "electron";
 import { join } from "path";
 
 const isDev = !app.isPackaged;
 
+const applyFullScreenBounds = (win: BrowserWindow) => {
+  const display = screen.getPrimaryDisplay();
+  win.setBounds(display.bounds);
+};
+
 const createWindow = () => {
+  const display = screen.getPrimaryDisplay();
+  const { bounds } = display;
+
   const win = new BrowserWindow({
-    width: 500,
-    height: 700,
+    x: bounds.x,
+    y: bounds.y,
+    width: bounds.width,
+    height: bounds.height,
     transparent: true,
     frame: false,
     resizable: false,
@@ -22,6 +32,11 @@ const createWindow = () => {
 
   win.setBackgroundColor("#00000000");
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  win.setIgnoreMouseEvents(true, { forward: true });
+
+  screen.on("display-metrics-changed", () => applyFullScreenBounds(win));
+  screen.on("display-added", () => applyFullScreenBounds(win));
+  screen.on("display-removed", () => applyFullScreenBounds(win));
 
   if (isDev) {
     win.loadURL("http://localhost:5173");
