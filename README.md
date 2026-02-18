@@ -1,6 +1,8 @@
-# Desktop Pet (Electron + Live2D)
+# hiyoriclaw (Electron + Live2D)
 
 A lightweight desktop pet powered by Electron, TypeScript, and Live2D.
+
+Project name: **hiyoriclaw** (a combination of hiyori and [open]claw).
 
 ## Requirements
 

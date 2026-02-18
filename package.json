@@ -1,12 +1,12 @@
 {
-  "name": "desktop-pet",
+  "name": "hiyoriclaw",
   "version": "0.1.0",
-  "description": "Desktop pet using Electron, TypeScript, and Live2D.",
+  "description": "Hiyoriclaw desktop pet using Electron, TypeScript, and Live2D.",
   "private": true,
   "main": "dist/main/main.js",
   "scripts": {
-    "dev": "concurrently -k \"tsc -p tsconfig.main.json --watch\" \"tsc -p tsconfig.preload.json --watch\" \"vite\" \"wait-on http://localhost:5173 dist/main/main.js dist/preload/preload.js && electron .\"",
-    "start": "electron .",
+    "dev": "concurrently --kill-others-on-fail \"tsc -p tsconfig.main.json --watch\" \"tsc -p tsconfig.preload.json --watch\" \"bash -lc 'if curl -fsS http://localhost:5173 > /dev/null 2>&1; then echo \\\"[dev] Reusing existing Vite server on 5173\\\"; else vite --port 5173 --strictPort; fi'\" \"wait-on http://localhost:5173 dist/main/main.js dist/preload/preload.js && env -u ELECTRON_RUN_AS_NODE electron .\"",
+    "start": "env -u ELECTRON_RUN_AS_NODE electron .",
     "build": "tsc -p tsconfig.main.json && tsc -p tsconfig.preload.json && vite build",
     "pack": "npm run build && electron-builder --dir",
     "dist": "npm run build && electron-builder",
@@ -26,8 +26,8 @@
     "wait-on": "^7.2.0"
   },
   "build": {
-    "appId": "com.example.desktoppet",
-    "productName": "DesktopPet",
+    "appId": "com.example.hiyoriclaw",
+    "productName": "Hiyoriclaw",
     "files": [
       "dist/**/*",
       "package.json"

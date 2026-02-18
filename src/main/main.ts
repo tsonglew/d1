@@ -43,6 +43,7 @@ const createWindow = () => {
   });
 
   win.setBackgroundColor("#00000000");
+  win.setAlwaysOnTop(true, "screen-saver");
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   win.setIgnoreMouseEvents(true, { forward: true });
 
@@ -52,7 +53,6 @@ const createWindow = () => {
 
   if (isDev) {
     win.loadURL("http://localhost:5173");
-    win.webContents.openDevTools({ mode: "detach" });
   } else {
     win.loadFile(join(__dirname, "../renderer/index.html"));
   }
@@ -62,6 +62,11 @@ const createWindow = () => {
 
 app.whenReady().then(() => {
   nativeTheme.themeSource = "system";
+
+  if (process.platform === "darwin") {
+    app.dock.hide();
+  }
+
   mainWindow = createWindow();
 
   app.on("activate", () => {

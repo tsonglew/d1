@@ -21,7 +21,7 @@ const app = new PIXI.Application({
 
 stageEl.appendChild(app.view as HTMLCanvasElement);
 
-const MODEL_URL = "/models/hiyori_free_en/hiyori_free_t08.model3.json";
+const MODEL_URL = "/models/hiyori_free_en/runtime/hiyori_free_t08.model3.json";
 
 const fitModel = (model: Live2DModel) => {
   const maxWidthScale = (app.renderer.width / model.width) * 0.5;
